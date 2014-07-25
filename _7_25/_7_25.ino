@@ -15,9 +15,19 @@
   
  
  //include the library for i2c communication   
-#include <Wire.h>                 
+#include <Wire.h>      
+
+//Define the address pointers of the chip & 
+#define CHIPADDRESS 0x48
+#define RESET 0xBF
+#define CAPSETUP 0x07
+#define EXECSETUP 0x09
+#define CONFIGREG 0x0A
+#define CAPOFFSET 0x0B
+#define CAPDATA1  0x01
 
 //PIN MAPPINGS
+
 byte readycap=0;
 //We will move our 24bit capacitance data into capData from the three byte registers hi, mid, and low
 byte hi=0;
@@ -27,90 +37,76 @@ byte lo=0;
 unsigned long capData=0;
 //The raw data will be scaled by a number determined in our testing.
 float scaledData=0;
-    
+
+//in any i2c interaction, first the host sends the address of the slave with which it wishes to correspond. Normally, the address of the AD7747 is 0x90 and 0x91 for read/write. 
+//in arduino, we specify read/write in the wire.write or wire.recieve commands so the address gets bit shifted to the left and the last bit is dropped. The address becomes 0x48 for both read
+//and write. After the first command is sent we send a register address from which to recieve data.    
+   
+   void sendData(byte regAddress, byte data){
+     Wire.beginTransmission(CHIPADDRESS);
+     Wire.write(regAddress);
+     Wire.write(data);
+     Wire.endTransmission();
+     delay(5);
+   }
+
+//For    
+   void readData(byte regAddress, int count){
+     Wire.beginTransmission(CHIPADDRESS);
+     Wire.write(regAddress);
+     Wire.endTransmission();
+     Wire.requestFrom(CHIPADDRESS, count);
+     Wire.endTransmission();
+     delay(5);
+   }
+   
    void setup(){
 //sets up i2c for operation
      Wire.begin();                   
 // we will monitor this via serial cable
      Serial.begin(9600);             
-//in any i2c interaction, first the host sends the address of the slave with which it wishes to correspond. Normally, the address of the AD7747 is 0x90 and 0x91 for read/write. 
-//in arduino, we specify read/write in the wire.write or wire.recieve commands so the address gets bit shifted to the left and the last bit is dropped. The address becomes 0x48 for both read
-//and write. 
-//After the first command is sent we send a register address from which to recieve data. First we will reset the device by sending the reset address 0xBF and then writing nothing to it
-      Wire.beginTransmission(0x48);
-      Wire.write(0xBF);
-      Wire.write(0x00);
-      Wire.endTransmission();          
- //delay for good measure
-      delay(5);     
+
+      sendData(RESET, 0x00);          
  //next we will access the Capacitance Setup Register and load the suggested values
-      Wire.beginTransmission(0x48);  
-      Wire.write(0x07);              
-      Wire.write(0xA0);             
-      Wire.endTransmission();        
-      delay(5);                      
+      sendData(CAPSETUP, 0xA0);      
  //This is a sigma-delta converter which uses excitation as an integral part of its operation. The excitation register is initialized in this transmission using the datasheet recommended value.
-      Wire.beginTransmission(0x48);   
-      Wire.write(0x09);            
-      Wire.write(0x0E);              
-      Wire.endTransmission();
-      delay(5);      
+      sendData(EXECSETUP, 0x0E);    
  //Configuration Register
-      Wire.beginTransmission(0x48);
-      Wire.write(0x0A);              
-      Wire.write(0x21);              
-      Wire.endTransmission();      
+      sendData(CONFIGREG, 0x21);     
  //Capacitance reading offset register.
-      Wire.beginTransmission(0x48);
-      Wire.write(0x0B);              
-      Wire.write(0x00);               
-      Wire.endTransmission();      
+      sendData(CAPOFFSET,0x80);   
 //Make sure we got through the setup OK
       Serial.println("Setup Complete");        
+
 //Print All the Values We just Sent     
       Serial.println(" ");
+      
       Serial.print("CapSetup:");
-      Wire.beginTransmission(0x48);  
-      Wire.write(0x07);  
-      Wire.endTransmission();      
-      Wire.requestFrom(0x48,1);
-      Serial.println(Wire.read(),HEX);                   
-      delay(5);     
+      readData(CAPSETUP,1);    
+      Serial.println(Wire.read(),HEX);
       Serial.print("ExecSetup:");
-      Wire.beginTransmission(0x48);
-      Wire.write(0x09);
-      Wire.endTransmission();
-      Wire.requestFrom(0x48,1);
-      Serial.println(Wire.read(),HEX);                   
-      delay(5);  
+      readData(EXECSETUP,1);
+       Serial.println(Wire.read(),HEX);
+      
       Serial.print("ConfigReg:");
-      Wire.beginTransmission(0x48);
-      Wire.write(0x0A);
-      Wire.endTransmission();
-      Wire.requestFrom(0x48,1);
-      Serial.println(Wire.read(),HEX);                   
-      delay(5);
+      readData(CONFIGREG,1);
+  Serial.println(Wire.read(),HEX);
       Serial.print("CapOffset:");
-      Wire.beginTransmission(0x48);
-      Wire.write(0x0B);
-      Wire.endTransmission();
-      Wire.requestFrom(0x48,1);
-      Serial.println(Wire.read(),HEX);                   
-      delay(5);
-        
+      readData(CAPOFFSET,1);
+  Serial.println(Wire.read(),HEX);
 }
    
    
    void loop(){
         delay(1000);
-        readyReceive();
+        //readyReceive();
         //Serial.print("Status Register: ");
         //Serial.println(readycap,BIN);
-        if(readycap==0x02){
-          requestCapData();
-          addData();
+        //if(readycap==0x02){
+          //requestCapData();
+          //addData();
           //scaleData();
-        }
+        //}
         delay(500);
         Serial.println();
     }
