@@ -2,19 +2,23 @@
 
     //----------------------------------------------------------------------------------------
     //|     AD7747 Capacitive Sensor                                                         |
-    //|   Based on code by  MiG found at:http://forum.arduino.cc/index.php/topic,11882.0.html|                                           |
+    //|  inspired by code by  MiG found at:http://forum.arduino.cc/index.php/topic,11882.0.html|                                           |
     //|                                                                                      |
-    //|  Author: Aidan Williamson (although I didn't do much original work)                  |
-    //|  Written: 7/3/2014                                                                   |
+    //|  Author: Aidan Williamson                  |
+    //|  Written: 7/25/2014                                                                   |
     //|  ad7747 datasheet:http://www.analog.com/static/imported-files/data_sheets/AD7747.pdf |
     //|                                                                                      |
     //|                                                                                      |
     //|                                                                                      |
     //|                                                                                      |
     //-----------------------------------------------------------------------------------------
+  
+ 
  //include the library for i2c communication   
 #include <Wire.h>                 
+
 //PIN MAPPINGS
+byte readycap=0;
 //We will move our 24bit capacitance data into capData from the three byte registers hi, mid, and low
 byte hi=0;
 byte mid=0;
@@ -59,53 +63,67 @@ float scaledData=0;
  //Capacitance reading offset register.
       Wire.beginTransmission(0x48);
       Wire.write(0x0B);              
-      Wire.write(0x80);               
+      Wire.write(0x00);               
       Wire.endTransmission();      
 //Make sure we got through the setup OK
       Serial.println("Setup Complete");        
-   
+//Print All the Values We just Sent     
+      Serial.println(" ");
+      Serial.print("CapSetup:");
+      Wire.beginTransmission(0x48);  
+      Wire.write(0x07);  
+      Wire.endTransmission();      
+      Wire.requestFrom(0x48,1);
+      Serial.println(Wire.read(),HEX);                   
+      delay(5);     
+      Serial.print("ExecSetup:");
+      Wire.beginTransmission(0x48);
+      Wire.write(0x09);
+      Wire.endTransmission();
+      Wire.requestFrom(0x48,1);
+      Serial.println(Wire.read(),HEX);                   
+      delay(5);  
+      Serial.print("ConfigReg:");
+      Wire.beginTransmission(0x48);
+      Wire.write(0x0A);
+      Wire.endTransmission();
+      Wire.requestFrom(0x48,1);
+      Serial.println(Wire.read(),HEX);                   
+      delay(5);
+      Serial.print("CapOffset:");
+      Wire.beginTransmission(0x48);
+      Wire.write(0x0B);
+      Wire.endTransmission();
+      Wire.requestFrom(0x48,1);
+      Serial.println(Wire.read(),HEX);                   
+      delay(5);
+        
 }
    
    
    void loop(){
-        readyCheck();
-        requestCapData();
-        //scaleData();
-        delay(2000);
+        delay(1000);
+        readyReceive();
+        //Serial.print("Status Register: ");
+        //Serial.println(readycap,BIN);
+        if(readycap==0x02){
+          requestCapData();
+          addData();
+          //scaleData();
+        }
+        delay(500);
         Serial.println();
     }
-/*
-We need a way to know when the AD7747 has finished converting analog readings to digital values. When this happens, bit 0 of the STATUS REGISTER goes low. 
-Read the status register data and move that data into a file called readycap. 
-AND Gate Logic:
- In    In    Out
- 0     0     0
- 0     1     0
- 1     0     0
- 1     1     1
 
-Since the ready bit in the status register is normally 1, we normally have: 1 AND 1 = 1
-When the ready bit goes low, we will get 1 AND 0 = 0
-*/
-
-    void readyCheck(){
-
+    void readyReceive(){
       Wire.beginTransmission(0x48);               //talking to chip
       Wire.write(byte(0x00));                    //status register address
       Wire.endTransmission();
       Wire.requestFrom(0x48,1);                  //request status register data
-      byte readycap=(Wire.read());  
-      while((readycap!=0x02)){          //while not ready
-        Serial.print("readycap:");
-        Serial.println(readycap, BIN);
-        delay(1);
-        }  
-      Serial.println("Data Ready");
-      return;     
-    }        
-
-      
-     
+      readycap=(Wire.read());
+      return;
+    }
+    
    void requestCapData(){
  //Point to the first of the three cap data regisiters
       Wire.beginTransmission(0x48); //arduino asks for data from ad7747
@@ -113,17 +131,11 @@ When the ready bit goes low, we will get 1 AND 0 = 0
       Wire.endTransmission();       //pointer is set so now we can read the data
 //Request 3 bytes of data
       Wire.requestFrom(0x48,3);     //reads data from cap DAC registers 1-3
-      if(Wire.available() < 0x03){
-        delay(1);
-         }  
-      else if(Wire.available() == 0x03){
-        Serial.println("Data Incoming");
-        addData();
-         }
-      else{
-        Serial.println("Received Greater Than Three Bytes");
+      if(Wire.available() != 0x03){
+         Serial.println("Corrupted Data");
         return;
-         }
+         }  
+      Serial.println("Data Incoming");
       return;
    }
    void addData()
@@ -131,7 +143,8 @@ When the ready bit goes low, we will get 1 AND 0 = 0
      hi=Wire.read();
      mid=Wire.read();
      lo=Wire.read();
-
+     Serial.println("hi  mid  lo");
+     Serial.print(hi,HEX);Serial.print("  ");Serial.print(mid,HEX);Serial.print("  ");Serial.println(lo,HEX);
      capData=(hi<<16)+(mid<<8)+(lo);
      Serial.print("Raw Data:   ");
      Serial.println(capData,DEC);
