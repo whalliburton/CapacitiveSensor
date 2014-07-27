@@ -49,7 +49,7 @@ int read_register(byte number){
 }
 
 void print_all_registers(){
-  for(int number=R_STATUS; number<=R_VOLT_GAIN_L; number++) {
+  for(int number=R_STATUS; number<=R_LAST_REGISTER; number++) {
     Serial.print(register_names[number]);
     Serial.print(" ");
     Serial.println(read_register(number),HEX);
