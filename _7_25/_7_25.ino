@@ -7,7 +7,7 @@
 #include "ad7747.h"
 
 #define PROJECT "CAP"
-#define VERSION "0.3"
+#define VERSION "0.4"
 #define DEBUGGING
 
 #define CAP_ADDRESS 0x48
@@ -70,12 +70,20 @@ void setup(){
   Serial.println("Setup complete.");
 }
 
+unsigned int read_sensor(){
+  Wire.beginTransmission(CAP_ADDRESS);
+  Wire.write(R_CAP_DATA_H);
+  Wire.endTransmission(0);
+  Wire.requestFrom(CAP_ADDRESS,3);
+  wait_for_data(3);
+  return (Wire.read() << 16 | Wire.read() << 8 | Wire.read());
+}
+
 void loop(){
+  if (read_register(R_STATUS) == 2){
+    Serial.println(read_sensor());
+  }
   delay(1000);
-  Serial.println(read_register(R_STATUS));
-  Serial.println(read_register(R_CAP_DATA_H));
-  Serial.println(read_register(R_CAP_DATA_M));
-  Serial.println(read_register(R_CAP_DATA_L));
 }
 
 
