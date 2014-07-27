@@ -1,0 +1,6 @@
+#!/bin/bash
+
+exec 3<> /dev/ttyACM0
+sleep 1
+echo "yo" >&3
+tail -f <&3
